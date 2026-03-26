@@ -11,6 +11,7 @@ public class BudgetDtos {
 
     public record BudgetRequest(
             @NotBlank String categoryId,
+            String accountId,
             @NotNull @Min(1) @Max(12) Integer month,
             @NotNull @Min(2000) Integer year,
             @NotNull @DecimalMin(value = "0.01") BigDecimal amount,
@@ -22,6 +23,8 @@ public class BudgetDtos {
             String id,
             String categoryId,
             String categoryName,
+            String accountId,
+            String accountName,
             Integer month,
             Integer year,
             BigDecimal amount,

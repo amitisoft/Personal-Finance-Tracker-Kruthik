@@ -1,6 +1,8 @@
 package com.financetracker.controller;
 
+import com.financetracker.dto.InsightsDtos;
 import com.financetracker.dto.ReportDtos;
+import com.financetracker.service.InsightsService;
 import com.financetracker.service.ReportService;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReportController {
 
     private final ReportService reportService;
+    private final InsightsService insightsService;
 
     @GetMapping("/dashboard")
     public ResponseEntity<ReportDtos.DashboardResponse> getDashboard() {
@@ -45,12 +48,22 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getAccountBalanceTrend());
     }
 
+    @GetMapping("/reports/net-worth")
+    public ResponseEntity<ReportDtos.NetWorthResponse> netWorth() {
+        return ResponseEntity.ok(reportService.getNetWorthReport());
+    }
+
     @GetMapping("/reports/summary")
     public ResponseEntity<ReportDtos.FilteredReportResponse> filteredSummary(
             @RequestParam LocalDate startDate,
             @RequestParam LocalDate endDate
     ) {
         return ResponseEntity.ok(reportService.getFilteredReport(startDate, endDate));
+    }
+
+    @GetMapping("/reports/trends")
+    public ResponseEntity<InsightsDtos.TrendReportResponse> trends() {
+        return ResponseEntity.ok(insightsService.getTrendReport());
     }
 
     @GetMapping(value = "/reports/export", produces = "text/csv")

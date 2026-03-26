@@ -9,6 +9,9 @@ import ReportsPage from "./pages/ReportsPage";
 import AccountsPage from "./pages/AccountsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import RecurringPage from "./pages/RecurringPage";
+import InsightsPage from "./pages/InsightsPage";
+import RulesPage from "./pages/RulesPage";
+import SharedAccountsPage from "./pages/SharedAccountsPage";
 
 export default function App() {
   return (
@@ -19,6 +22,9 @@ export default function App() {
       <Route path="/budgets" element={<ProtectedRoute><BudgetsPage /></ProtectedRoute>} />
       <Route path="/goals" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
+      <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
+      <Route path="/rules" element={<ProtectedRoute><RulesPage /></ProtectedRoute>} />
+      <Route path="/shared-accounts" element={<ProtectedRoute><SharedAccountsPage /></ProtectedRoute>} />
       <Route path="/accounts" element={<ProtectedRoute><AccountsPage /></ProtectedRoute>} />
       <Route path="/categories" element={<ProtectedRoute><CategoriesPage /></ProtectedRoute>} />
       <Route path="/recurring" element={<ProtectedRoute><RecurringPage /></ProtectedRoute>} />

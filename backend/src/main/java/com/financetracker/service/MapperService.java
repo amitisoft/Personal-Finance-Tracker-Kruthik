@@ -28,7 +28,8 @@ public class MapperService {
                 account.getOpeningBalance(),
                 account.getCurrentBalance(),
                 account.getInstitutionName(),
-                account.getCreatedAt() == null ? null : account.getCreatedAt().toString()
+                account.getCreatedAt() == null ? null : account.getCreatedAt().toString(),
+                "OWNER"
         );
     }
 
@@ -71,6 +72,8 @@ public class MapperService {
                 budget.getId().toString(),
                 budget.getCategory().getId().toString(),
                 budget.getCategory().getName(),
+                budget.getAccount() == null ? null : budget.getAccount().getId().toString(),
+                budget.getAccount() == null ? null : budget.getAccount().getName(),
                 budget.getMonth(),
                 budget.getYear(),
                 budget.getAmount(),
@@ -93,6 +96,7 @@ public class MapperService {
                 goal.getCurrentAmount(),
                 goal.getTargetDate(),
                 goal.getLinkedAccount() == null ? null : goal.getLinkedAccount().getId().toString(),
+                goal.getLinkedAccount() == null ? null : goal.getLinkedAccount().getName(),
                 goal.getIcon(),
                 goal.getColor(),
                 goal.getStatus(),

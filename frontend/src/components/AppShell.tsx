@@ -1,17 +1,18 @@
 import {
-  Bell,
   CreditCard,
   FolderKanban,
   Goal,
   LayoutDashboard,
   Menu,
   Repeat,
-  Search,
   Wallet,
   X,
   BadgeIndianRupee,
   BarChart3,
   LogOut,
+  Sparkles,
+  Workflow,
+  UsersRound,
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
@@ -23,6 +24,9 @@ const links = [
   { to: "/budgets", label: "Budgets", icon: FolderKanban },
   { to: "/goals", label: "Goals", icon: Goal },
   { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/insights", label: "Insights", icon: Sparkles },
+  { to: "/rules", label: "Rules", icon: Workflow },
+  { to: "/shared-accounts", label: "Shared Accounts", icon: UsersRound },
   { to: "/accounts", label: "Accounts", icon: Wallet },
   { to: "/categories", label: "Categories", icon: CreditCard },
   { to: "/recurring", label: "Recurring", icon: Repeat },
@@ -82,13 +86,6 @@ export default function AppShell({ title, children }: { title: string; children:
                 <p className="text-sm text-slate-500">Overview</p>
                 <h2 className="truncate text-2xl font-semibold text-slate-900">{title}</h2>
               </div>
-              <div className="hidden max-w-md flex-1 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 lg:flex">
-                <Search size={16} className="text-slate-400" />
-                <input className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400" placeholder="Search" />
-              </div>
-              <button className="app-button-secondary hidden md:inline-flex">
-                <Bell size={16} />
-              </button>
               <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
                   {auth?.user.displayName?.slice(0, 1) || "U"}

@@ -31,7 +31,8 @@ public class AccountDtos {
             BigDecimal openingBalance,
             BigDecimal currentBalance,
             String institutionName,
-            String createdAt
+            String createdAt,
+            String accessRole
     ) {
     }
 }

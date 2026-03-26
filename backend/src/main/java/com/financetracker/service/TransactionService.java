@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,9 @@ public class TransactionService {
     private final AccountService accountService;
     private final CategoryService categoryService;
     private final MapperService mapperService;
+    private final AccessControlService accessControlService;
+    private final RulesEngineService rulesEngineService;
+    private final ActivityLogService activityLogService;
 
     @Transactional(readOnly = true)
     public TransactionDtos.TransactionPageResponse getTransactions(
@@ -44,11 +48,11 @@ public class TransactionService {
             String startDate,
             String endDate
     ) {
-        UUID userId = userContextService.getCurrentUserEntity().getId();
+        Set<UUID> accessibleAccountIds = accessControlService.getAccessibleAccountIds();
         Pageable pageable = PageRequest.of(page, size);
         String searchPattern = search == null || search.isBlank() ? null : "%" + search.toLowerCase(Locale.ROOT).trim() + "%";
-        Page<FinanceTransaction> result = transactionRepository.search(
-                userId,
+        Page<FinanceTransaction> result = transactionRepository.searchByAccountIds(
+                accessibleAccountIds,
                 accountId == null || accountId.isBlank() ? null : UUID.fromString(accountId),
                 categoryId == null || categoryId.isBlank() ? null : UUID.fromString(categoryId),
                 type == null || type.isBlank() ? null : TransactionType.valueOf(type.toUpperCase()),
@@ -68,57 +72,62 @@ public class TransactionService {
 
     @Transactional(readOnly = true)
     public TransactionDtos.TransactionResponse getTransaction(String id) {
-        return mapperService.toTransactionResponse(getOwnedTransaction(id));
+        return mapperService.toTransactionResponse(getAccessibleTransaction(id));
     }
 
     @Transactional
     public TransactionDtos.TransactionResponse create(TransactionDtos.TransactionRequest request) {
-        validateTransaction(request);
+        TransactionDtos.TransactionRequest evaluatedRequest = rulesEngineService.applyRules(request);
+        validateTransaction(evaluatedRequest);
         User user = userContextService.getCurrentUserEntity();
-        Account account = accountService.getOwnedAccount(request.accountId());
-        Category category = request.categoryId() == null || request.categoryId().isBlank() ? null : categoryService.getOwnedCategory(request.categoryId());
+        Account account = accountService.getWritableAccount(evaluatedRequest.accountId());
+        Category category = evaluatedRequest.categoryId() == null || evaluatedRequest.categoryId().isBlank() ? null : categoryService.getOwnedCategory(evaluatedRequest.categoryId());
         FinanceTransaction saved = createForUser(
                 user,
                 account,
                 category,
-                request.type(),
-                request.amount(),
-                request.date(),
-                request.transferAccountId(),
-                request.merchant(),
-                request.note(),
-                request.paymentMethod(),
-                request.tags() == null ? new HashSet<>() : new HashSet<>(request.tags())
+                evaluatedRequest.type(),
+                evaluatedRequest.amount(),
+                evaluatedRequest.date(),
+                evaluatedRequest.transferAccountId(),
+                evaluatedRequest.merchant(),
+                evaluatedRequest.note(),
+                evaluatedRequest.paymentMethod(),
+                evaluatedRequest.tags() == null ? new HashSet<>() : new HashSet<>(evaluatedRequest.tags())
         );
         return mapperService.toTransactionResponse(saved);
     }
 
     @Transactional
     public TransactionDtos.TransactionResponse update(String id, TransactionDtos.TransactionRequest request) {
-        validateTransaction(request);
-        FinanceTransaction existing = getOwnedTransaction(id);
+        TransactionDtos.TransactionRequest evaluatedRequest = rulesEngineService.applyRules(request);
+        validateTransaction(evaluatedRequest);
+        FinanceTransaction existing = getAccessibleTransaction(id);
         rollbackAccountImpact(existing);
 
-        Account account = accountService.getOwnedAccount(request.accountId());
-        Category category = request.categoryId() == null || request.categoryId().isBlank() ? null : categoryService.getOwnedCategory(request.categoryId());
+        Account account = accountService.getWritableAccount(evaluatedRequest.accountId());
+        Category category = evaluatedRequest.categoryId() == null || evaluatedRequest.categoryId().isBlank() ? null : categoryService.getOwnedCategory(evaluatedRequest.categoryId());
         existing.setAccount(account);
         existing.setCategory(category);
-        existing.setType(request.type());
-        existing.setAmount(request.amount());
-        existing.setTransactionDate(request.date());
-        existing.setMerchant(request.merchant());
-        existing.setNote(request.note());
-        existing.setPaymentMethod(request.paymentMethod());
-        existing.setTransferAccountId(request.transferAccountId() == null || request.transferAccountId().isBlank() ? null : UUID.fromString(request.transferAccountId()));
-        existing.setTags(request.tags() == null ? new HashSet<>() : new HashSet<>(request.tags()));
-        applyAccountImpact(account, request.type(), request.amount(), request.transferAccountId(), true);
-        return mapperService.toTransactionResponse(transactionRepository.save(existing));
+        existing.setType(evaluatedRequest.type());
+        existing.setAmount(evaluatedRequest.amount());
+        existing.setTransactionDate(evaluatedRequest.date());
+        existing.setMerchant(evaluatedRequest.merchant());
+        existing.setNote(evaluatedRequest.note());
+        existing.setPaymentMethod(evaluatedRequest.paymentMethod());
+        existing.setTransferAccountId(evaluatedRequest.transferAccountId() == null || evaluatedRequest.transferAccountId().isBlank() ? null : UUID.fromString(evaluatedRequest.transferAccountId()));
+        existing.setTags(evaluatedRequest.tags() == null ? new HashSet<>() : new HashSet<>(evaluatedRequest.tags()));
+        applyAccountImpact(account, evaluatedRequest.type(), evaluatedRequest.amount(), evaluatedRequest.transferAccountId(), true);
+        FinanceTransaction saved = transactionRepository.save(existing);
+        activityLogService.record(account, "UPDATE", "TRANSACTION", account.getName(), "Updated " + saved.getType() + " transaction for " + saved.getAmount());
+        return mapperService.toTransactionResponse(saved);
     }
 
     @Transactional
     public void delete(String id) {
-        FinanceTransaction transaction = getOwnedTransaction(id);
+        FinanceTransaction transaction = getAccessibleTransaction(id);
         rollbackAccountImpact(transaction);
+        activityLogService.record(transaction.getAccount(), "DELETE", "TRANSACTION", transaction.getMerchant() == null ? transaction.getType().name() : transaction.getMerchant(), "Deleted transaction for " + transaction.getAmount());
         transactionRepository.delete(transaction);
     }
 
@@ -151,14 +160,14 @@ public class TransactionService {
                 .build();
         applyAccountImpact(account, type, amount, transferAccountId, true);
         FinanceTransaction saved = transactionRepository.save(transaction);
+        activityLogService.record(account, "CREATE", "TRANSACTION", merchant == null || merchant.isBlank() ? type.name() : merchant, "Added " + type + " transaction for " + amount);
         log.info("Created transaction {} for user {}", saved.getId(), user.getEmail());
         return saved;
     }
 
     @Transactional(readOnly = true)
-    public FinanceTransaction getOwnedTransaction(String id) {
-        UUID userId = userContextService.getCurrentUserEntity().getId();
-        return transactionRepository.findByIdAndUserId(UUID.fromString(id), userId)
+    public FinanceTransaction getAccessibleTransaction(String id) {
+        return transactionRepository.findByIdAndAccountIdIn(UUID.fromString(id), accessControlService.getAccessibleAccountIds())
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found"));
     }
 
@@ -185,7 +194,7 @@ public class TransactionService {
                 if (transferAccountId == null || transferAccountId.isBlank()) {
                     throw new BadRequestException("Transfer account is required");
                 }
-                Account transferAccount = accountService.getOwnedAccount(transferAccountId);
+                Account transferAccount = accountService.getWritableAccount(transferAccountId);
                 if (account.getId().equals(transferAccount.getId())) {
                     throw new BadRequestException("Transfer accounts must be different");
                 }

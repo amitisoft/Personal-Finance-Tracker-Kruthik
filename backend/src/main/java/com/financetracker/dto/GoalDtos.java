@@ -32,6 +32,7 @@ public class GoalDtos {
             BigDecimal currentAmount,
             LocalDate targetDate,
             String linkedAccountId,
+            String linkedAccountName,
             String icon,
             String color,
             GoalStatus status,

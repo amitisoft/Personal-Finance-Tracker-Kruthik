@@ -29,12 +29,19 @@ public class ReportDtos {
     public record AccountBalancePoint(String account, BigDecimal balance) {
     }
 
+    public record NetWorthPoint(String label, BigDecimal netWorth) {
+    }
+
+    public record NetWorthResponse(BigDecimal currentNetWorth, List<NetWorthPoint> history) {
+    }
+
     public record FilteredReportResponse(
             LocalDate startDate,
             LocalDate endDate,
             List<CategorySpendPoint> categorySpend,
             List<TrendPoint> incomeVsExpense,
-            List<AccountBalancePoint> accountBalances
+            List<AccountBalancePoint> accountBalances,
+            NetWorthResponse netWorth
     ) {
     }
 }

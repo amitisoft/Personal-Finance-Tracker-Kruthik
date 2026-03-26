@@ -5,7 +5,7 @@ import LoadingBlock from "../components/LoadingBlock";
 import SectionCard from "../components/SectionCard";
 import { useCurrency } from "../hooks/useCurrency";
 import { financeService } from "../services/financeService";
-import { Budget, Category } from "../types/api";
+import { Account, Budget, Category } from "../types/api";
 import { useToast } from "../context/ToastContext";
 import { getApiErrorMessage } from "../utils/apiError";
 
@@ -25,8 +25,9 @@ export default function BudgetsPage() {
   const today = new Date();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ categoryId: "", month: today.getMonth() + 1, year: today.getFullYear(), amount: "", alertThresholdPercent: 80 });
+  const [form, setForm] = useState({ categoryId: "", accountId: "", month: today.getMonth() + 1, year: today.getFullYear(), amount: "", alertThresholdPercent: 80 });
   const { formatCurrency } = useCurrency();
   const { showToast } = useToast();
 
@@ -42,6 +43,9 @@ export default function BudgetsPage() {
     financeService.getCategories()
       .then((data) => setCategories(data.filter((item) => item.type === "EXPENSE")))
       .catch((error) => showToast(getApiErrorMessage(error, "Unable to load categories"), "error"));
+    financeService.getAccounts()
+      .then(setAccounts)
+      .catch((error) => showToast(getApiErrorMessage(error, "Unable to load accounts"), "error"));
   }, []);
 
   useEffect(() => {
@@ -86,6 +90,12 @@ export default function BudgetsPage() {
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
             </Field>
+            <Field label="Account scope">
+              <select value={form.accountId} onChange={(event) => setForm((current) => ({ ...current, accountId: event.target.value }))} className="app-select">
+                <option value="">All personal accounts</option>
+                {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+            </Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Month" required>
                 <input type="number" value={form.month} onChange={(event) => setForm((current) => ({ ...current, month: Number(event.target.value) }))} className="app-input" />
@@ -120,6 +130,7 @@ export default function BudgetsPage() {
                     <div>
                       <p className="font-medium text-slate-900">{budget.categoryName}</p>
                       <p className="text-sm text-slate-500">{formatCurrency(budget.spent)} spent of {formatCurrency(budget.amount)}</p>
+                      <p className="mt-1 text-xs text-slate-400">{budget.accountName ? `Scoped to ${budget.accountName}` : "Applies to your personal budgets"}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${budget.utilizationPercentage > 100 ? "bg-rose-100 text-rose-600" : "bg-slate-100 text-slate-700"}`}>{budget.utilizationPercentage.toFixed(0)}%</span>
                   </div>

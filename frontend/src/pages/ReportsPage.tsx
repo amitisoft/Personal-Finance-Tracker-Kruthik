@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Download } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import AppShell from "../components/AppShell";
 import EmptyState from "../components/EmptyState";
 import LoadingBlock from "../components/LoadingBlock";
 import SectionCard from "../components/SectionCard";
+import { useToast } from "../context/ToastContext";
 import { useCurrency } from "../hooks/useCurrency";
 import { financeService } from "../services/financeService";
-import { FilteredReport } from "../types/api";
+import { Account, CategorySpendPoint, NetWorthReport, TrendPoint } from "../types/api";
 import { currentMonthRange } from "../utils/date";
-import { useToast } from "../context/ToastContext";
+import { getApiErrorMessage } from "../utils/apiError";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -24,14 +25,52 @@ export default function ReportsPage() {
   const range = currentMonthRange();
   const [startDate, setStartDate] = useState(range.start);
   const [endDate, setEndDate] = useState(range.end);
-  const [report, setReport] = useState<FilteredReport | null>(null);
+  const [categorySpend, setCategorySpend] = useState<CategorySpendPoint[]>([]);
+  const [incomeExpense, setIncomeExpense] = useState<TrendPoint[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [netWorth, setNetWorth] = useState<NetWorthReport | null>(null);
   const [loading, setLoading] = useState(true);
   const { formatCurrency } = useCurrency();
   const { showToast } = useToast();
 
   const load = () => {
     setLoading(true);
-    financeService.getReportSummary(startDate, endDate).then(setReport).finally(() => setLoading(false));
+    Promise.allSettled([
+      financeService.getCategorySpendReport(startDate, endDate),
+      financeService.getIncomeExpenseReport(startDate, endDate),
+      financeService.getAccounts(),
+      financeService.getNetWorth(),
+    ])
+      .then(([categoryResult, trendResult, accountsResult, netWorthResult]) => {
+        if (categoryResult.status === "fulfilled") {
+          setCategorySpend(categoryResult.value);
+        } else {
+          setCategorySpend([]);
+          showToast(getApiErrorMessage(categoryResult.reason, "Unable to load category report"), "error");
+        }
+
+        if (trendResult.status === "fulfilled") {
+          setIncomeExpense(trendResult.value);
+        } else {
+          setIncomeExpense([]);
+          showToast(getApiErrorMessage(trendResult.reason, "Unable to load income vs expense report"), "error");
+        }
+
+        if (accountsResult.status === "fulfilled") {
+          setAccounts(accountsResult.value);
+        } else {
+          setAccounts([]);
+          showToast(getApiErrorMessage(accountsResult.reason, "Unable to load account balances"), "error");
+        }
+
+        if (netWorthResult.status === "fulfilled") {
+          setNetWorth(netWorthResult.value);
+        } else {
+          setNetWorth(null);
+          showToast(getApiErrorMessage(netWorthResult.reason, "Unable to load net worth report"), "error");
+        }
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -39,10 +78,16 @@ export default function ReportsPage() {
   }, []);
 
   const exportCsv = async () => {
-    const csv = await financeService.exportCsv(startDate, endDate);
-    navigator.clipboard.writeText(csv);
-    showToast("CSV copied to clipboard");
+    try {
+      const csv = await financeService.exportCsv(startDate, endDate);
+      navigator.clipboard.writeText(csv);
+      showToast("CSV copied to clipboard");
+    } catch (error) {
+      showToast(getApiErrorMessage(error, "Unable to export CSV"), "error");
+    }
   };
+
+  const accountCards = useMemo(() => accounts.filter((account) => typeof account.currentBalance === "number"), [accounts]);
 
   return (
     <AppShell title="Reports">
@@ -62,10 +107,10 @@ export default function ReportsPage() {
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
         <SectionCard title="Category spending">
-          {loading ? <LoadingBlock className="h-80 w-full" /> : report?.categorySpend.length ? (
+          {loading ? <LoadingBlock className="h-80 w-full" /> : categorySpend.length ? (
             <div className="h-80">
               <ResponsiveContainer>
-                <BarChart data={report.categorySpend}>
+                <BarChart data={categorySpend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" />
                   <YAxis />
@@ -75,15 +120,15 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No category data" message="Expand the date range to load report data." />
+            <EmptyState title="No category data" message="Expand the date range or add expense transactions in the selected period." />
           )}
         </SectionCard>
 
         <SectionCard title="Income vs Expense">
-          {loading ? <LoadingBlock className="h-80 w-full" /> : report?.incomeVsExpense.length ? (
+          {loading ? <LoadingBlock className="h-80 w-full" /> : incomeExpense.length ? (
             <div className="h-80">
               <ResponsiveContainer>
-                <LineChart data={report.incomeVsExpense}>
+                <LineChart data={incomeExpense}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" />
                   <YAxis />
@@ -95,29 +140,57 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
           ) : (
-            <EmptyState title="No trend data" message="Once transactions exist in the selected range, the chart will appear here." />
+            <EmptyState title="No trend data" message="Add transactions in the selected date range to see the trend line." />
           )}
         </SectionCard>
       </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {loading ? (
-          <>
-            <LoadingBlock className="h-32 w-full" />
-            <LoadingBlock className="h-32 w-full" />
-            <LoadingBlock className="h-32 w-full" />
-          </>
-        ) : report?.accountBalances.length ? (
-          report.accountBalances.map((account) => (
-            <SectionCard key={account.account} title={account.account} className="p-5">
-              <p className="text-3xl font-semibold text-slate-900">{formatCurrency(account.balance)}</p>
-            </SectionCard>
-          ))
-        ) : (
-          <div className="md:col-span-3">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <SectionCard title="Current net worth">
+          {loading ? <LoadingBlock className="h-72 w-full" /> : netWorth ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-slate-50 p-5">
+                <p className="text-sm text-slate-500">Current accessible net worth</p>
+                <p className="mt-2 text-3xl font-semibold text-slate-900">{formatCurrency(netWorth.currentNetWorth)}</p>
+              </div>
+              {netWorth.history.length ? (
+                <div className="h-56">
+                  <ResponsiveContainer>
+                    <LineChart data={netWorth.history}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="label" />
+                      <YAxis />
+                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Line type="monotone" dataKey="netWorth" stroke="#7c3aed" strokeWidth={3} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <EmptyState title="No net worth data" message="Net worth history will appear once accounts are available." />
+          )}
+        </SectionCard>
+
+        <SectionCard title="Account balances">
+          {loading ? (
+            <div className="space-y-3">
+              <LoadingBlock className="h-20 w-full" />
+              <LoadingBlock className="h-20 w-full" />
+            </div>
+          ) : accountCards.length ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {accountCards.map((account) => (
+                <div key={account.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <p className="text-sm text-slate-500">{account.name}</p>
+                  <p className="mt-2 text-2xl font-semibold text-slate-900">{formatCurrency(account.currentBalance)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
             <EmptyState title="No account balances" message="Create accounts and transactions to view balance reports." />
-          </div>
-        )}
+          )}
+        </SectionCard>
       </div>
     </AppShell>
   );
