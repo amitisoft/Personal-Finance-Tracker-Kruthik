@@ -13,8 +13,18 @@ type RetryableConfig = {
   headers?: Record<string, string>;
 };
 
+function getApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (!configuredBaseUrl) {
+    return "/api";
+  }
+
+  const normalizedBaseUrl = configuredBaseUrl.replace(/\/+$/, "");
+  return normalizedBaseUrl.endsWith("/api") ? normalizedBaseUrl : `${normalizedBaseUrl}/api`;
+}
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL: getApiBaseUrl(),
 });
 
 function readAuthStorage() {
@@ -60,7 +70,7 @@ async function refreshAccessToken() {
 
   if (!refreshPromise) {
     refreshPromise = axios
-      .post("/api/auth/refresh", { refreshToken: auth.refreshToken })
+      .post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken: auth.refreshToken })
       .then((response) => {
         const nextAuth: StoredAuth = {
           accessToken: response.data.accessToken,
