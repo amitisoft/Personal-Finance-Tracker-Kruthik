@@ -2,9 +2,9 @@ spring:
   application:
     name: finance-tracker
   datasource:
-    url: jdbc:postgresql://localhost:5432/FinanceTracker
-    username: postgres
-    password: Kru@123
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/FinanceTracker}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:Kru@123}
   jpa:
     hibernate:
       ddl-auto: update
@@ -17,13 +17,13 @@ spring:
       write-dates-as-timestamps: false
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 app:
   jwt:
-    secret: <SECRET_KEY_CHANGE_ME_FOR_PRODUCTION_32_BYTES_MINIMUM>
-    access-token-expiration-ms: 3600000
-    refresh-token-expiration-ms: 604800000
+    secret: ${APP_JWT_SECRET:<SECRET_KEY_CHANGE_ME_FOR_PRODUCTION_32_BYTES_MINIMUM>}
+    access-token-expiration-ms: ${APP_JWT_ACCESS_TOKEN_EXPIRATION_MS:3600000}
+    refresh-token-expiration-ms: ${APP_JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
 
 logging:
   level:
