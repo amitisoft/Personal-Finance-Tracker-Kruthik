@@ -21,7 +21,7 @@ export default function LoginPage() {
   const { auth, login, register } = useAuth();
   const { showToast } = useToast();
   const [isRegister, setIsRegister] = useState(false);
-  const [form, setForm] = useState({ displayName: "", email: "demo@financetracker.app", password: "DemoPass123" });
+  const [form, setForm] = useState({ displayName: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -92,14 +92,30 @@ export default function LoginPage() {
           <form className="mt-8 grid gap-4" onSubmit={submit}>
             {isRegister ? (
               <Field label="Display name" required>
-                <input value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} className="app-input" />
+                <input
+                  value={form.displayName}
+                  onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))}
+                  className="app-input"
+                  placeholder="Enter your name"
+                />
               </Field>
             ) : null}
             <Field label="Email" required>
-              <input value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} className="app-input" />
+              <input
+                value={form.email}
+                onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                className="app-input"
+                placeholder="Enter your email"
+              />
             </Field>
             <Field label="Password" required>
-              <input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" className="app-input" />
+              <input
+                value={form.password}
+                onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                type="password"
+                className="app-input"
+                placeholder="Enter your password"
+              />
             </Field>
             {error ? <p className="text-sm font-medium text-rose-600">{error}</p> : null}
             <button disabled={loading} className="app-button-primary w-full disabled:opacity-60">
@@ -110,10 +126,6 @@ export default function LoginPage() {
           <button onClick={() => setIsRegister((current) => !current)} className="mt-5 text-sm font-medium text-slate-700 hover:text-slate-900">
             {isRegister ? "Already have an account? Log in" : "Need an account? Sign up"}
           </button>
-
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-            Demo credentials: <span className="font-medium text-slate-900">demo@financetracker.app</span> / <span className="font-medium text-slate-900">DemoPass123</span>
-          </div>
         </div>
       </div>
     </div>

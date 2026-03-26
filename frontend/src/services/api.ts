@@ -25,7 +25,7 @@ function getApiBaseUrl() {
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -74,7 +74,7 @@ async function refreshAccessToken() {
 
   if (!refreshPromise) {
     refreshPromise = axios
-      .post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken: auth.refreshToken }, { timeout: 15000 })
+      .post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken: auth.refreshToken }, { timeout: 30000 })
       .then((response) => {
         const nextAuth: StoredAuth = {
           accessToken: response.data.accessToken,
