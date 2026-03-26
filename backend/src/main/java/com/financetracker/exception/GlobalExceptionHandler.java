@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,8 +26,8 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.BAD_REQUEST, ex.getMessage(), Map.of());
     }
 
-    @ExceptionHandler(UnauthorizedException.class)
-    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex) {
+    @ExceptionHandler({UnauthorizedException.class, AuthenticationException.class, AuthenticationCredentialsNotFoundException.class})
+    public ResponseEntity<ErrorResponse> handleUnauthorized(Exception ex) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage(), Map.of());
     }
 

@@ -10,7 +10,6 @@ import com.financetracker.repository.UserRepository;
 import com.financetracker.security.JwtService;
 import com.financetracker.security.UserPrincipal;
 import java.time.LocalDateTime;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -32,11 +31,12 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.AuthResponse register(AuthDtos.RegisterRequest request) {
-        if (userRepository.existsByEmail(request.email())) {
+        String normalizedEmail = request.email().trim().toLowerCase();
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new BadRequestException("Email is already registered");
         }
         User user = User.builder()
-                .email(request.email().toLowerCase())
+                .email(normalizedEmail)
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .displayName(request.displayName())
                 .build();
@@ -47,8 +47,9 @@ public class AuthService {
 
     @Transactional
     public AuthDtos.AuthResponse login(AuthDtos.LoginRequest request) {
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.email(), request.password()));
-        User user = userRepository.findByEmail(request.email().toLowerCase())
+        String normalizedEmail = request.email().trim().toLowerCase();
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(normalizedEmail, request.password()));
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
         log.info("User logged in {}", user.getEmail());
         revokeTokens(user);
@@ -69,7 +70,7 @@ public class AuthService {
     }
 
     public AuthDtos.MessageResponse forgotPassword(AuthDtos.ForgotPasswordRequest request) {
-        log.info("Forgot password requested for {}", request.email());
+        log.info("Forgot password requested for {}", request.email().trim().toLowerCase());
         return new AuthDtos.MessageResponse("Forgot password is stubbed for V1. Use the demo reset token: DEMO-RESET-TOKEN");
     }
 
@@ -78,7 +79,7 @@ public class AuthService {
         if (!"DEMO-RESET-TOKEN".equals(request.token())) {
             throw new BadRequestException("Invalid reset token");
         }
-        User user = userRepository.findByEmail(request.email().toLowerCase())
+        User user = userRepository.findByEmail(request.email().trim().toLowerCase())
                 .orElseThrow(() -> new BadRequestException("Email not found"));
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
